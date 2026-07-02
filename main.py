@@ -10,6 +10,19 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.runnables import RunnableConfig
+
+# Dynamic LLM generation helper
+def get_llm(config: RunnableConfig):
+    configurable = config.get("configurable", {})
+    model_name = configurable.get("model_name", "llama-3.3-70b-versatile")
+    temperature = configurable.get("temperature", 0.3)
+    
+    return ChatOpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        model=model_name,
+        temperature=temperature
+    )
 
 # Reconfigure stdout to use UTF-8 on Windows to prevent emoji encoding crashes
 if sys.platform.startswith('win'):
@@ -46,9 +59,10 @@ class AgentWorkspaceState(TypedDict):
     final_artifact: str
     route: str # Tracks which path the graph should take
 
-def router_agent(state: AgentWorkspaceState):
+def router_agent(state: AgentWorkspaceState, config: RunnableConfig):
     """The 'Brain' that decides if the user wants to chat or needs a report."""
     user_input = state['messages'][-1].content
+    local_llm = get_llm(config)
     
     # We ask the LLM to classify the user's intent
     prompt = f"""You are an intelligent routing agent.
@@ -58,7 +72,7 @@ def router_agent(state: AgentWorkspaceState):
     User Input: "{user_input}"
     Respond with ONLY the word CHAT or RESEARCH."""
     
-    response = llm.invoke(prompt).content.strip().upper()
+    response = local_llm.invoke(prompt).content.strip().upper()
     
     # Clean up the response just in case the LLM is chatty
     route = "RESEARCH" if "RESEARCH" in response else "CHAT"
@@ -66,29 +80,37 @@ def router_agent(state: AgentWorkspaceState):
     
     return {"route": route}
 
-def chat_agent(state: AgentWorkspaceState):
+def chat_agent(state: AgentWorkspaceState, config: RunnableConfig):
     """Handles standard, conversational chatbot requests seamlessly."""
     print("💬 Chat Agent is responding naturally...")
+    local_llm = get_llm(config)
     
-    # We give the chat agent a persona so it behaves well
-    sys_msg = SystemMessage(content="You are a helpful, brilliant, and friendly AI assistant. Provide clear, well-formatted answers.")
+    configurable = config.get("configurable", {})
+    custom_system_prompt = configurable.get("system_prompt", "").strip()
+    
+    system_text = custom_system_prompt if custom_system_prompt else "You are a helpful, brilliant, and friendly AI assistant. Provide clear, well-formatted answers."
+    sys_msg = SystemMessage(content=system_text)
     messages = [sys_msg] + state['messages']
     
-    response = llm.invoke(messages)
+    response = local_llm.invoke(messages)
     return {"final_artifact": response.content, "messages": [response]}
 
-def researcher_agent(state: AgentWorkspaceState):
+def researcher_agent(state: AgentWorkspaceState, config: RunnableConfig):
     """Gathers complex data for full reports."""
     print("🤖 Researcher is gathering deep analysis data...")
+    local_llm = get_llm(config)
+    
     prompt = f"Provide a detailed, factual breakdown regarding this topic to be used for a report: {state['messages'][-1].content}"
-    response = llm.invoke(prompt)
+    response = local_llm.invoke(prompt)
     return {"research_data": response.content}
 
-def writer_agent(state: AgentWorkspaceState):
+def writer_agent(state: AgentWorkspaceState, config: RunnableConfig):
     """Drafts the formal report."""
     print("✍️ Writer is drafting the formal report...")
+    local_llm = get_llm(config)
+    
     prompt = f"Using this research: {state['research_data']}, write a comprehensive and highly professional markdown report. Include headers and bullet points."
-    response = llm.invoke(prompt)
+    response = local_llm.invoke(prompt)
     return {"final_artifact": response.content, "messages": [response]}
 
 # --- Build the Graph ---
@@ -125,9 +147,15 @@ agent_app = workflow.compile(checkpointer=memory)
 async def get_index():
     return FileResponse("index.html")
 
+class SettingsSchema(BaseModel):
+    model: str = "llama-3.3-70b-versatile"
+    temperature: float = 0.3
+    system_prompt: str = ""
+
 class UserRequest(BaseModel):
     prompt: str
     session_id: str
+    settings: SettingsSchema = None
 
 class TitleRequest(BaseModel):
     prompt: str
@@ -143,8 +171,24 @@ async def generate_title(req: TitleRequest):
 
 @app.post("/api/run-agents")
 async def run_agents(req: UserRequest):
+    model_name = "llama-3.3-70b-versatile"
+    temperature = 0.3
+    system_prompt = ""
+    
+    if req.settings:
+        model_name = req.settings.model
+        temperature = req.settings.temperature
+        system_prompt = req.settings.system_prompt
+
     # 2. We use the session_id to maintain a continuous thread/memory!
-    config = {"configurable": {"thread_id": req.session_id}}
+    config = {
+        "configurable": {
+            "thread_id": req.session_id,
+            "model_name": model_name,
+            "temperature": temperature,
+            "system_prompt": system_prompt
+        }
+    }
     
     # 3. We only pass the NEW message. Our state logic automatically appends it to history.
     input_state = {
@@ -152,4 +196,4 @@ async def run_agents(req: UserRequest):
     }
     
     final_state = agent_app.invoke(input_state, config=config)
-    return {"artifact": final_state["final_artifact"]}
+    return {"artifact": final_state["final_artifact"], "route": final_state.get("route", "CHAT")}

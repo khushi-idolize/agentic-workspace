@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,66 +8,86 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         /* Custom scrollbar configurations */
         .scrollbar-thin::-webkit-scrollbar {
             width: 5px;
             height: 5px;
         }
+
         .scrollbar-thin::-webkit-scrollbar-track {
             background: rgba(17, 24, 39, 0.3);
         }
+
         .scrollbar-thin::-webkit-scrollbar-thumb {
             background: rgba(75, 85, 99, 0.4);
             border-radius: 9999px;
         }
+
         .scrollbar-thin::-webkit-scrollbar-thumb:hover {
             background: rgba(156, 163, 175, 0.6);
         }
+
         .scrollbar-none::-webkit-scrollbar {
             display: none;
         }
-        
+
         /* Smooth transitions */
         .chat-transition {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
     </style>
 </head>
+
 <body class="bg-gray-950 text-gray-100 h-screen flex font-sans selection:bg-blue-500/30 overflow-hidden">
 
     <!-- Left Sidebar -->
-    <div class="w-80 border-r border-gray-800/80 bg-gray-900/40 backdrop-blur-md flex flex-col h-full shadow-2xl z-20 shrink-0">
+    <div
+        class="w-80 border-r border-gray-800/80 bg-gray-900/40 backdrop-blur-md flex flex-col h-full shadow-2xl z-20 shrink-0">
         <!-- Logo Area -->
         <div class="p-6 border-b border-gray-800/60 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="bg-blue-500/10 p-2 rounded-lg border border-blue-500/20">
                     <i data-lucide="cpu" class="text-blue-400 w-5 h-5"></i>
                 </div>
-                <h1 class="text-lg font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500">AGENT HQ</h1>
+                <h1
+                    class="text-lg font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500">
+                    AGENT HQ</h1>
             </div>
         </div>
-        
+
         <!-- Action Button -->
         <div class="p-4">
-            <button onclick="createNewChat()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-3 px-4 rounded-xl font-semibold flex justify-center items-center space-x-2 transition-all duration-300 shadow-lg hover:shadow-blue-500/20 active:scale-[0.98]">
+            <button onclick="createNewChat()"
+                class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-3 px-4 rounded-xl font-semibold flex justify-center items-center space-x-2 transition-all duration-300 shadow-lg hover:shadow-blue-500/20 active:scale-[0.98]">
                 <i data-lucide="plus" class="w-4.5 h-4.5"></i>
                 <span>New Chat</span>
             </button>
         </div>
-        
+
+        <!-- Search Chat History -->
+        <div class="px-4 pb-2">
+            <div class="relative flex items-center bg-gray-950/60 border border-gray-800 rounded-xl focus-within:border-blue-500/50 transition-all duration-300">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-500 absolute left-3"></i>
+                <input type="text" id="searchChatsInput" oninput="filterHistory()" class="w-full pl-9 pr-4 py-2 bg-transparent text-xs text-gray-200 focus:outline-none placeholder-gray-500" placeholder="Search chats...">
+            </div>
+        </div>
+
         <!-- History List (Scrollable) -->
         <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 scrollbar-thin" id="chatHistoryList">
             <!-- Saved sessions will render here -->
         </div>
-        
+
         <!-- System Logs Panel -->
         <div class="p-4 border-t border-gray-800/60 bg-gray-950/40">
             <div class="flex items-center justify-between mb-2 px-1">
                 <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">System Monitor</span>
                 <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
             </div>
-            <div id="logs" class="h-28 overflow-y-auto text-[11px] text-gray-400 font-mono space-y-1.5 bg-gray-950/80 border border-gray-800/80 rounded-lg p-2.5 scrollbar-thin">
+            <div id="logs"
+                class="h-28 overflow-y-auto text-[11px] text-gray-400 font-mono space-y-1.5 bg-gray-950/80 border border-gray-800/80 rounded-lg p-2.5 scrollbar-thin">
                 <div class="text-blue-400">System initialization completed.</div>
             </div>
         </div>
@@ -74,18 +95,79 @@
 
     <!-- Main Workspace (Canvas) -->
     <div class="flex-1 flex flex-col h-full bg-gray-950 relative overflow-hidden">
+
+        <!-- Settings Drawer Panel -->
+        <div id="settingsDrawer" class="fixed right-0 top-0 h-full w-80 bg-gray-900/95 border-l border-gray-800 backdrop-blur-lg shadow-2xl z-30 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+            <div class="p-6 border-b border-gray-800 flex items-center justify-between">
+                <h3 class="font-bold text-gray-200 flex items-center space-x-2">
+                    <i data-lucide="settings" class="w-4.5 h-4.5 text-blue-400"></i>
+                    <span>Agent Configuration</span>
+                </h3>
+                <button onclick="toggleSettings(false)" class="text-gray-500 hover:text-gray-300 transition-colors">
+                    <i data-lucide="x" class="w-4.5 h-4.5"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-6 flex-1 overflow-y-auto scrollbar-thin text-xs">
+                <!-- Model Selection -->
+                <div class="space-y-2">
+                    <label class="block font-semibold text-gray-400 uppercase tracking-wider text-[10px]">Inference Model</label>
+                    <select id="settingModel" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-gray-200 focus:outline-none focus:border-blue-500/50">
+                        <option value="llama-3.3-70b-versatile" selected>Llama 3.3 70B (Versatile)</option>
+                        <option value="mixtral-8x7b-32768">Mixtral 8x7B (Mixture of Experts)</option>
+                        <option value="gemma2-9b-it">Gemma 2 9B (Instruct)</option>
+                    </select>
+                </div>
+                
+                <!-- Temperature Selection -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="font-semibold text-gray-400 uppercase tracking-wider text-[10px]">Temperature (Creativity)</label>
+                        <span id="tempVal" class="text-blue-400 font-mono font-bold">0.3</span>
+                    </div>
+                    <input type="range" id="settingTemp" min="0" max="1" step="0.1" value="0.3" oninput="updateTempLabel(this.value)" class="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                    <div class="flex justify-between text-[9px] text-gray-600 font-mono">
+                        <span>Precise (0.0)</span>
+                        <span>Balanced (0.5)</span>
+                        <span>Creative (1.0)</span>
+                    </div>
+                </div>
+                
+                <!-- Custom Persona / System Instructions -->
+                <div class="space-y-2">
+                    <label class="block font-semibold text-gray-400 uppercase tracking-wider text-[10px]">System Instruction (Persona)</label>
+                    <textarea id="settingSystemPrompt" rows="4" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-gray-200 focus:outline-none focus:border-blue-500/50 resize-none placeholder-gray-600 font-sans" placeholder="E.g. Explain like I am 5 years old. Or: Speak like a terminal hacker..."></textarea>
+                    <p class="text-[9px] text-gray-600 leading-normal">Sets instructions specifically for the conversational Chat Agent node.</p>
+                </div>
+            </div>
+            
+            <div class="p-6 border-t border-gray-800/60 bg-gray-950/40 flex space-x-2.5">
+                <button onclick="saveSettings()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl transition-all text-center">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+
         <!-- Top Status Bar -->
-        <div class="h-16 border-b border-gray-800/60 bg-gray-900/10 backdrop-blur-sm flex items-center justify-between px-8 z-10 shrink-0">
+        <div
+            class="h-16 border-b border-gray-800/60 bg-gray-900/10 backdrop-blur-sm flex items-center justify-between px-8 z-10 shrink-0">
             <div class="flex items-center space-x-3 overflow-hidden">
                 <i data-lucide="message-square" class="text-blue-500 w-4 h-4 shrink-0"></i>
-                <h2 id="activeChatTitle" class="text-sm font-semibold text-gray-200 truncate max-w-sm">New Conversation</h2>
+                <h2 id="activeChatTitle" class="text-sm font-semibold text-gray-200 truncate max-w-sm">New Conversation
+                </h2>
             </div>
             <div class="flex items-center space-x-4 text-xs font-mono">
+                <!-- Settings Button -->
+                <button onclick="toggleSettings()" class="text-gray-500 hover:text-blue-400 p-2 rounded-xl transition-all duration-300 flex justify-center items-center mr-2" title="LLM & Agent Settings">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                </button>
                 <div class="flex items-center space-x-1.5 text-gray-500">
                     <span>ID:</span>
-                    <span id="activeSessionId" class="text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded border border-blue-500/10">None</span>
+                    <span id="activeSessionId"
+                        class="text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded border border-blue-500/10">None</span>
                 </div>
-                <div id="statusBadge" class="flex items-center space-x-1.5 text-green-400 bg-green-500/5 px-2.5 py-0.5 rounded border border-green-500/10">
+                <div id="statusBadge"
+                    class="flex items-center space-x-1.5 text-green-400 bg-green-500/5 px-2.5 py-0.5 rounded border border-green-500/10">
                     <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                     <span id="statusText">Ready</span>
                 </div>
@@ -101,10 +183,27 @@
 
         <!-- Chat Input Area -->
         <div class="p-6 bg-gradient-to-t from-gray-950 via-gray-950/95 to-transparent shrink-0">
-            <div class="max-w-3xl mx-auto relative bg-gray-900/50 border border-gray-800/80 rounded-2xl shadow-xl focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/20 transition-all duration-300">
-                <textarea id="promptInput" rows="1" class="w-full pl-5 pr-14 py-4 bg-transparent text-gray-100 text-sm focus:outline-none resize-none scrollbar-none leading-relaxed placeholder-gray-500" placeholder="Type a message or request a deep research report..." onkeydown="handleInputKeydown(event)" oninput="autoGrow(this)"></textarea>
-                <div class="absolute right-3.5 bottom-3.5">
-                    <button onclick="runAgents()" id="runBtn" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-xl transition-all duration-300 flex justify-center items-center shadow-md hover:shadow-blue-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+            <div
+                class="max-w-3xl mx-auto relative bg-gray-900/50 border border-gray-800/80 rounded-2xl shadow-xl focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/20 transition-all duration-300">
+                <textarea id="promptInput" rows="1"
+                    class="w-full pl-5 pr-24 py-4 bg-transparent text-gray-100 text-sm focus:outline-none resize-none scrollbar-none leading-relaxed placeholder-gray-500"
+                    placeholder="Type a message or request a deep research report..."
+                    onkeydown="handleInputKeydown(event)" oninput="autoGrow(this)"></textarea>
+                <div class="absolute right-3.5 bottom-3.5 flex items-center space-x-2">
+                    <!-- Voice Input Button -->
+                    <button onclick="toggleVoiceInput()" id="micBtn" class="text-gray-500 hover:text-blue-400 p-2 rounded-xl transition-all duration-300 flex justify-center items-center" title="Voice dictation">
+                        <i data-lucide="mic" class="w-4 h-4"></i>
+                    </button>
+                    <!-- Stop Button (Hidden by default) -->
+                    <button onclick="stopTypewriting()" id="stopBtn"
+                        class="hidden bg-red-600/90 hover:bg-red-600 text-white p-2 rounded-xl transition-all duration-300 flex justify-center items-center shadow-lg hover:shadow-red-500/20 active:scale-95"
+                        title="Stop generating">
+                        <i data-lucide="square" class="w-4 h-4"></i>
+                    </button>
+                    <!-- Send Button -->
+                    <button onclick="runAgents()" id="runBtn"
+                        class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-xl transition-all duration-300 flex justify-center items-center shadow-lg hover:shadow-blue-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Send message">
                         <i data-lucide="send" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -123,27 +222,361 @@
         let typingInterval = null;
         let renamingSessionId = null;
 
+        // Advanced variables
+        let activeAbortController = null;
+        let synthUtterance = null;
+        let activeSpeechBtn = null;
+        let currentTypingText = '';
+        let currentTypingIndex = 0;
+
+        // Settings helper functions
+        function getSettings() {
+            const defaults = {
+                model: 'llama-3.3-70b-versatile',
+                temperature: 0.3,
+                system_prompt: ''
+            };
+            try {
+                const stored = localStorage.getItem('agent_hq_settings');
+                return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
+            } catch (e) {
+                return defaults;
+            }
+        }
+
+        function saveSettings() {
+            const model = document.getElementById('settingModel').value;
+            const temperature = parseFloat(document.getElementById('settingTemp').value);
+            const system_prompt = document.getElementById('settingSystemPrompt').value;
+            
+            const settings = { model, temperature, system_prompt };
+            localStorage.setItem('agent_hq_settings', JSON.stringify(settings));
+            
+            updateLogs('System: Configuration updated successfully.', 'success');
+            toggleSettings(false);
+        }
+
+        function toggleSettings(show) {
+            const drawer = document.getElementById('settingsDrawer');
+            if (!drawer) return;
+            
+            if (show === undefined) {
+                show = drawer.classList.contains('translate-x-full');
+            }
+            
+            if (show) {
+                const current = getSettings();
+                document.getElementById('settingModel').value = current.model;
+                document.getElementById('settingTemp').value = current.temperature;
+                document.getElementById('tempVal').innerText = current.temperature;
+                document.getElementById('settingSystemPrompt').value = current.system_prompt;
+                
+                drawer.classList.remove('translate-x-full');
+            } else {
+                drawer.classList.add('translate-x-full');
+            }
+            refreshIcons();
+        }
+
+        function updateTempLabel(val) {
+            document.getElementById('tempVal').innerText = val;
+        }
+
+        let recognition = null;
+        let isListening = false;
+        let searchQuery = '';
+        let simulationIntervals = [];
+
+        // Filter chat history by search query
+        function filterHistory() {
+            const searchInput = document.getElementById('searchChatsInput');
+            if (searchInput) {
+                searchQuery = searchInput.value.toLowerCase().trim();
+            }
+            renderSidebar();
+        }
+
+        // Voice Input dictation via Speech Recognition
+        function toggleVoiceInput() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                updateLogs('System: Speech recognition is not supported in this browser.', 'error');
+                return;
+            }
+
+            const micBtn = document.getElementById('micBtn');
+            const input = document.getElementById('promptInput');
+            if (!micBtn || !input) return;
+
+            if (!recognition) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    micBtn.classList.add('text-red-500', 'bg-red-500/10', 'border-red-500/30');
+                    micBtn.innerHTML = '<i data-lucide="mic-off" class="w-4 h-4 text-red-500 animate-pulse"></i>';
+                    refreshIcons();
+                    updateLogs('System: Listening for voice input...', 'info');
+                    updateStatus('Listening...', 'blue');
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    input.value = (input.value + " " + transcript).trim();
+                    autoGrow(input);
+                    input.focus();
+                };
+
+                recognition.onerror = (event) => {
+                    updateLogs(`Error: Speech recognition failed: ${event.error}`, 'error');
+                    stopListening();
+                };
+
+                recognition.onend = () => {
+                    stopListening();
+                };
+            }
+
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) {
+                micBtn.className = 'text-gray-500 hover:text-blue-400 p-2 rounded-xl transition-all duration-300 flex justify-center items-center';
+                micBtn.innerHTML = '<i data-lucide="mic" class="w-4 h-4"></i>';
+                refreshIcons();
+            }
+            updateStatus('Ready', 'green');
+        }
+
+        // Highlight.js execution helper
+        function highlightCodeBlocks(containerEl) {
+            if (!containerEl || typeof hljs === 'undefined') return;
+            const codeBlocks = containerEl.querySelectorAll('pre code');
+            codeBlocks.forEach(block => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        // Loading animation simulation for stages
+        function clearLoadingSimulation() {
+            simulationIntervals.forEach(t => clearTimeout(t));
+            simulationIntervals = [];
+        }
+
+        function startLoadingSimulation() {
+            clearLoadingSimulation();
+            const stepsContainer = document.getElementById('loadingSteps');
+            if (!stepsContainer) return;
+            
+            const indicatorText = document.querySelector('#loadingIndicator span');
+            
+            // Step 2 (1.2s)
+            simulationIntervals.push(setTimeout(() => {
+                stepsContainer.innerHTML += `
+                    <div class="flex items-center space-x-2 text-indigo-400/80 animate-fade-in">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                        <span>Agent route resolved. Orchestrating resources...</span>
+                    </div>
+                `;
+                if (indicatorText) {
+                    indicatorText.innerText = "Analyzing Context...";
+                    indicatorText.className = "text-sm font-semibold text-indigo-400 animate-pulse";
+                }
+                scrollCanvasToBottom();
+            }, 1200));
+            
+            // Step 3 (2.6s)
+            simulationIntervals.push(setTimeout(() => {
+                stepsContainer.innerHTML += `
+                    <div class="flex items-center space-x-2 text-purple-400/80 animate-fade-in">
+                        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                        <span>Executing specialized agent nodes...</span>
+                    </div>
+                `;
+                if (indicatorText) {
+                    indicatorText.innerText = "Synthesizing Response...";
+                    indicatorText.className = "text-sm font-semibold text-purple-400 animate-pulse";
+                }
+                scrollCanvasToBottom();
+            }, 2600));
+        }
+
+        // Stop generation logic
+        function stopTypewriting() {
+            if (activeAbortController) {
+                activeAbortController.abort();
+                activeAbortController = null;
+            }
+            clearLoadingSimulation();
+            stopListening();
+
+            if (typingInterval) {
+                clearInterval(typingInterval);
+                typingInterval = null;
+
+                const stoppedText = currentTypingText.substring(0, currentTypingIndex) + " *[Generation Stopped by User]*";
+
+                // Truncate the active chat message in place
+                activeChat.messages[activeChat.messages.length - 1].text = stoppedText;
+
+                const updatedChats = getChats();
+                const uIndex = updatedChats.findIndex(c => c.sessionId === currentSessionId);
+                if (uIndex !== -1) {
+                    updatedChats[uIndex] = activeChat;
+                }
+                saveChats(updatedChats);
+
+                renderMessages();
+                renderSidebar();
+
+                updateLogs('System: Generation stopped by user.', 'info');
+                updateStatus('Ready', 'green');
+                toggleStopButton(false);
+
+                const runBtn = document.getElementById('runBtn');
+                const input = document.getElementById('promptInput');
+                runBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        // Toggle visibility between Send and Stop buttons
+        function toggleStopButton(show) {
+            const stopBtn = document.getElementById('stopBtn');
+            const runBtn = document.getElementById('runBtn');
+            if (stopBtn && runBtn) {
+                if (show) {
+                    stopBtn.classList.remove('hidden');
+                    runBtn.classList.add('hidden');
+                } else {
+                    stopBtn.classList.add('hidden');
+                    runBtn.classList.remove('hidden');
+                }
+            }
+            refreshIcons();
+        }
+
+        // Copy button injection for code blocks
+        function addCodeCopyButtons(containerEl) {
+            if (!containerEl) return;
+            const codeBlocks = containerEl.querySelectorAll('pre');
+            codeBlocks.forEach(block => {
+                if (block.querySelector('.copy-code-btn')) return;
+
+                block.style.position = 'relative';
+
+                const button = document.createElement('button');
+                button.className = 'copy-code-btn absolute right-2 top-2 bg-gray-800/80 hover:bg-gray-700 text-gray-400 hover:text-gray-200 px-2 py-1 rounded text-xs transition-all duration-200 flex items-center space-x-1 border border-gray-700/50';
+                button.innerHTML = '<i data-lucide="copy" class="w-3 h-3"></i><span>Copy</span>';
+
+                button.onclick = () => {
+                    const codeText = block.querySelector('code').innerText;
+                    navigator.clipboard.writeText(codeText).then(() => {
+                        button.innerHTML = '<i data-lucide="check" class="w-3 h-3 text-green-400"></i><span class="text-green-400">Copied!</span>';
+                        setTimeout(() => {
+                            button.innerHTML = '<i data-lucide="copy" class="w-3 h-3"></i><span>Copy</span>';
+                            refreshIcons();
+                        }, 2000);
+                        refreshIcons();
+                    });
+                };
+
+                block.appendChild(button);
+            });
+            refreshIcons();
+        }
+
+        // Export report as Markdown
+        function exportMarkdown(msgIndex) {
+            const msg = activeChat.messages[msgIndex];
+            if (!msg) return;
+
+            const blob = new Blob([msg.text], { type: 'text/markdown;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+
+            const cleanTitle = activeChat.title.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `report_${cleanTitle || 'response'}.md`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Text-to-speech engine
+        function speakMessage(btn, msgIndex) {
+            const msg = activeChat.messages[msgIndex];
+            if (!msg) return;
+
+            const synth = window.speechSynthesis;
+
+            if (synth.speaking) {
+                synth.cancel();
+                if (activeSpeechBtn) {
+                    activeSpeechBtn.innerHTML = '<i data-lucide="volume-2" class="w-3.5 h-3.5"></i>';
+                    activeSpeechBtn.title = "Read aloud";
+                    refreshIcons();
+                }
+                if (activeSpeechBtn === btn) {
+                    activeSpeechBtn = null;
+                    return;
+                }
+            }
+
+            const cleanText = msg.text
+                .replace(/[#*`_~]/g, '')
+                .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+
+            synthUtterance = new SpeechSynthesisUtterance(cleanText);
+            activeSpeechBtn = btn;
+
+            synthUtterance.onend = () => {
+                btn.innerHTML = '<i data-lucide="volume-2" class="w-3.5 h-3.5"></i>';
+                btn.title = "Read aloud";
+                activeSpeechBtn = null;
+                refreshIcons();
+            };
+
+            btn.innerHTML = '<i data-lucide="square" class="w-3.5 h-3.5 text-red-400"></i>';
+            btn.title = "Stop reading";
+            refreshIcons();
+
+            synth.speak(synthUtterance);
+        }
+
         // Fetch smart title from API
         async function generateSmartTitle(promptText, sessionId) {
             try {
                 const apiHost = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
                 const response = await fetch(`${apiHost}/api/generate-title`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: promptText })
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     const smartTitle = data.title;
-                    
+
                     // Update lists
                     let chats = getChats();
                     const chatIndex = chats.findIndex(c => c.sessionId === sessionId);
                     if (chatIndex !== -1) {
                         chats[chatIndex].title = smartTitle;
                         saveChats(chats);
-                        
+
                         // If it remains the current active chat, update UI
                         if (sessionId === currentSessionId) {
                             activeChat.title = smartTitle;
@@ -162,22 +595,32 @@
             if (typingInterval) {
                 clearInterval(typingInterval);
             }
+            currentTypingText = text;
+            currentTypingIndex = 0;
+
             let index = 0;
             const speed = 10; // Speed of interval in ms
             containerEl.innerHTML = '';
-            
+
+            toggleStopButton(true);
+
             typingInterval = setInterval(() => {
                 if (index < text.length) {
-                    // Type 2-3 characters at a time for smooth pacing
                     const chunkSize = Math.min(3, text.length - index);
-                    const currentText = text.substring(0, index + chunkSize);
                     index += chunkSize;
-                    
+                    currentTypingIndex = index;
+
+                    const currentText = text.substring(0, index);
                     containerEl.innerHTML = marked.parse(currentText);
+
+                    addCodeCopyButtons(containerEl);
                     scrollCanvasToBottom();
                 } else {
                     clearInterval(typingInterval);
                     typingInterval = null;
+                    toggleStopButton(false);
+
+                    addCodeCopyButtons(containerEl);
                     if (onComplete) onComplete();
                 }
             }, speed);
@@ -220,7 +663,7 @@
             const colorClass = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-blue-400';
             const logEntry = document.createElement('div');
             logEntry.className = `${colorClass} font-mono`;
-            
+
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             logEntry.innerHTML = `<span class="text-gray-600">[${time}]</span> ${text}`;
             logsContainer.appendChild(logEntry);
@@ -232,7 +675,7 @@
         function initApp() {
             const chats = getChats();
             const lastActiveId = localStorage.getItem(ACTIVE_SESSION_KEY);
-            
+
             if (lastActiveId && chats.some(c => c.sessionId === lastActiveId)) {
                 loadChat(lastActiveId);
             } else if (chats.length > 0) {
@@ -248,30 +691,32 @@
                 clearInterval(typingInterval);
                 typingInterval = null;
             }
+            clearLoadingSimulation();
+            stopListening();
             const sessionId = Math.random().toString(36).substring(2, 10);
             currentSessionId = sessionId;
-            
+
             activeChat = {
                 sessionId: sessionId,
                 title: 'New Conversation',
                 messages: [],
                 timestamp: Date.now()
             };
-            
+
             renderWelcomeScreen();
             updateTopBar('New Conversation', sessionId);
             updateStatus('Ready', 'green');
-            
+
             // Save active new chat to lists
             const chats = getChats();
             chats.unshift(activeChat);
             saveChats(chats);
-            
+
             localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
-            
+
             renderSidebar();
             updateLogs('System: Initialized new session.');
-            
+
             document.getElementById('promptInput').focus();
         }
 
@@ -285,15 +730,17 @@
                 clearInterval(typingInterval);
                 typingInterval = null;
             }
+            clearLoadingSimulation();
+            stopListening();
             const chats = getChats();
             const foundChat = chats.find(c => c.sessionId === sessionId);
             if (!foundChat) return;
 
             activeChat = foundChat;
             currentSessionId = sessionId;
-            
+
             localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
-            
+
             updateTopBar(activeChat.title, sessionId);
             updateStatus('Ready', 'green');
             renderMessages();
@@ -304,13 +751,13 @@
         // Delete a chat session
         function deleteChat(event, sessionId) {
             event.stopPropagation(); // Avoid triggering loading selection
-            
+
             let chats = getChats();
             chats = chats.filter(c => c.sessionId !== sessionId);
             saveChats(chats);
-            
+
             updateLogs(`System: Deleted session ${sessionId}.`);
-            
+
             if (currentSessionId === sessionId) {
                 if (chats.length > 0) {
                     loadChat(chats[0].sessionId);
@@ -339,7 +786,7 @@
             if (event) event.stopPropagation();
             const inputEl = document.getElementById(`renameInput-${sessionId}`);
             if (!inputEl) return;
-            
+
             const newTitle = inputEl.value.trim();
             if (newTitle) {
                 let chats = getChats();
@@ -347,7 +794,7 @@
                 if (chatIndex !== -1) {
                     chats[chatIndex].title = newTitle;
                     saveChats(chats);
-                    
+
                     if (sessionId === currentSessionId) {
                         activeChat.title = newTitle;
                         updateTopBar(newTitle, sessionId);
@@ -405,20 +852,21 @@
         // Render Sidebar List
         function renderSidebar() {
             const listContainer = document.getElementById('chatHistoryList');
-            const chats = getChats();
+            // Filter chats by sidebar search input
+            const chats = getChats().filter(chat => chat.title.toLowerCase().includes(searchQuery));
             listContainer.innerHTML = '';
-            
+
             chats.forEach(chat => {
                 const isActive = chat.sessionId === currentSessionId;
                 const isRenaming = chat.sessionId === renamingSessionId;
-                
-                const activeClasses = isActive 
-                    ? 'bg-blue-600/10 border-blue-500/30 text-blue-400' 
+
+                const activeClasses = isActive
+                    ? 'bg-blue-600/10 border-blue-500/30 text-blue-400'
                     : 'border-transparent text-gray-400 hover:bg-gray-800/30 hover:text-gray-200';
-                
+
                 const chatItem = document.createElement('div');
                 chatItem.className = `flex items-center justify-between p-3.5 rounded-xl border text-sm font-medium cursor-pointer transition-all duration-200 group ${activeClasses}`;
-                
+
                 if (isRenaming) {
                     chatItem.onclick = null; // Disable standard navigation click
                     chatItem.innerHTML = `
@@ -435,7 +883,7 @@
                             </button>
                         </div>
                     `;
-                    
+
                     // Autofocus input
                     setTimeout(() => {
                         const inputEl = document.getElementById(`renameInput-${chat.sessionId}`);
@@ -461,10 +909,10 @@
                         </div>
                     `;
                 }
-                
+
                 listContainer.appendChild(chatItem);
             });
-            
+
             refreshIcons();
         }
 
@@ -472,42 +920,76 @@
         function renderMessages() {
             const canvas = document.getElementById('artifactCanvas');
             canvas.innerHTML = '';
-            
+
             if (activeChat.messages.length === 0) {
                 renderWelcomeScreen();
                 return;
             }
 
-            activeChat.messages.forEach(msg => {
+            activeChat.messages.forEach((msg, index) => {
                 if (msg.sender === 'user') {
                     canvas.innerHTML += `
                         <div class="flex justify-end w-full chat-transition">
-                            <div class="bg-gray-900 border border-gray-800 px-5 py-3.5 rounded-2xl max-w-xl shadow-md ml-12">
+                            <div class="bg-gray-900 border border-gray-800 px-5 py-3.5 rounded-2xl max-w-xl shadow-md ml-12 break-words overflow-hidden">
                                 <div class="flex items-center space-x-2 mb-1.5 text-gray-500">
                                     <i data-lucide="user" class="w-3.5 h-3.5"></i>
                                     <span class="text-[10px] font-bold uppercase tracking-wider">You</span>
                                 </div>
-                                <p class="text-gray-200 text-sm whitespace-pre-line leading-relaxed">${msg.text}</p>
+                                <p class="text-gray-200 text-sm whitespace-pre-line leading-relaxed break-all">${msg.text}</p>
                             </div>
                         </div>
                     `;
                 } else {
                     canvas.innerHTML += `
                         <div class="flex justify-start w-full chat-transition">
-                            <div class="bg-blue-950/20 border border-blue-500/10 px-6 py-5 rounded-2xl w-full shadow-lg mr-12">
-                                <div class="flex items-center space-x-2 mb-3.5 text-blue-400">
-                                    <i data-lucide="bot" class="w-4 h-4 animate-pulse"></i>
-                                    <span class="text-[10px] font-bold uppercase tracking-wider">Agent Response</span>
+                            <div class="bg-blue-950/20 border border-blue-500/10 px-6 py-5 rounded-2xl w-full shadow-lg mr-12 break-words overflow-hidden">
+                                <div class="flex items-center justify-between mb-3.5 border-b border-blue-500/5 pb-2">
+                                    <div class="flex items-center space-x-2 text-blue-400">
+                                        <i data-lucide="bot" class="w-4 h-4 animate-pulse"></i>
+                                        <span class="text-[10px] font-bold uppercase tracking-wider">Agent Response</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <button onclick="speakMessage(this, ${index})" class="text-gray-500 hover:text-blue-400 p-1 rounded transition-colors" title="Read aloud">
+                                            <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                        <button onclick="exportMarkdown(${index})" class="text-gray-500 hover:text-blue-400 p-1 rounded transition-colors" title="Export as Markdown">
+                                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
                                 </div>
+                                
+                                ${msg.route ? `
+                                    <div class="flex items-center space-x-2 text-[10px] font-mono mb-4 text-gray-500 bg-gray-950/40 p-2 rounded-lg border border-gray-800/40 w-fit shrink-0">
+                                        <span class="text-blue-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-blue-500 mr-1.5"></span>Router</span>
+                                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-gray-700"></i>
+                                        ${msg.route === 'RESEARCH' ? `
+                                            <span class="text-indigo-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-indigo-500 mr-1.5"></span>Researcher</span>
+                                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-gray-700"></i>
+                                            <span class="text-purple-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-purple-500 mr-1.5"></span>Writer</span>
+                                        ` : `
+                                            <span class="text-green-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-green-500 mr-1.5"></span>Chat Agent</span>
+                                        `}
+                                    </div>
+                                ` : ''}
+
                                 <div class="prose prose-invert prose-blue max-w-none text-sm leading-relaxed text-gray-300">
                                     ${marked.parse(msg.text)}
                                 </div>
+
+                                ${msg.stats ? `
+                                    <div class="mt-4 pt-2.5 border-t border-blue-500/5 flex items-center justify-between text-[9px] font-mono text-gray-600">
+                                        <span>${msg.stats}</span>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                     `;
                 }
             });
-            
+
+            // Add copy button helper execution
+            addCodeCopyButtons(canvas);
+            highlightCodeBlocks(canvas);
             refreshIcons();
             scrollCanvasToBottom();
         }
@@ -529,13 +1011,13 @@
             const textEl = document.getElementById('statusText');
             const badge = document.getElementById('statusBadge');
             const dot = badge.querySelector('span');
-            
+
             textEl.innerText = text;
-            
+
             // Remove previous classes
             badge.className = 'flex items-center space-x-1.5 px-2.5 py-0.5 rounded border ';
             dot.className = 'w-1.5 h-1.5 rounded-full ';
-            
+
             if (color === 'green') {
                 badge.classList.add('text-green-400', 'bg-green-500/5', 'border-green-500/10');
                 dot.classList.add('bg-green-500');
@@ -553,7 +1035,7 @@
             const input = document.getElementById('promptInput');
             const prompt = input.value.trim();
             if (!prompt) return;
-            
+
             // Save state & title updating
             const isFirstMsg = activeChat.messages.length === 0;
             if (isFirstMsg) {
@@ -562,10 +1044,10 @@
                 // Call API asynchronously to generate a smart catching title
                 generateSmartTitle(prompt, currentSessionId);
             }
-            
+
             activeChat.messages.push({ sender: 'user', text: prompt });
             activeChat.timestamp = Date.now();
-            
+
             // Update active list inside localStorage
             const chats = getChats();
             const index = chats.findIndex(c => c.sessionId === currentSessionId);
@@ -576,53 +1058,86 @@
                 chats.unshift(activeChat);
             }
             saveChats(chats);
-            
+
             // Render user message and loading element
             renderMessages();
             renderSidebar();
-            
+
             input.value = '';
             input.style.height = "auto"; // Reset size
 
             const canvas = document.getElementById('artifactCanvas');
             canvas.innerHTML += `
-                <div id="loadingIndicator" class="flex flex-col items-center justify-center py-6 space-y-3 chat-transition">
-                    <div class="w-6 h-6 border-2 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
-                    <p class="text-blue-400/80 font-mono text-[10px] tracking-wide animate-pulse">Running agents...</p>
+                <div id="loadingIndicator" class="flex flex-col items-start w-full max-w-xl mx-auto bg-gray-900/30 border border-gray-800/80 px-6 py-5 rounded-2xl my-6 space-y-4 chat-transition">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-5 h-5 border-2 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
+                        <span class="text-sm font-semibold text-blue-400 animate-pulse">Routing Request...</span>
+                    </div>
+                    <div class="space-y-2.5 w-full font-mono text-[10px] text-gray-500 pl-8 border-l border-gray-800/60 ml-2.5" id="loadingSteps">
+                        <div class="flex items-center space-x-2 text-blue-400/80">
+                            <span class="w-1 h-1 rounded-full bg-blue-400"></span>
+                            <span>Evaluating intent classification...</span>
+                        </div>
+                    </div>
                 </div>
             `;
             scrollCanvasToBottom();
+            
+            startLoadingSimulation();
 
             // Disable buttons during execution
             const runBtn = document.getElementById('runBtn');
             runBtn.disabled = true;
             input.disabled = true;
-            
+
             updateLogs('System: Routing user input to agent flow...', 'info');
             updateStatus('Thinking...', 'blue');
+            toggleStopButton(true);
+
+            // Set up activeAbortController
+            activeAbortController = new AbortController();
+            const signal = activeAbortController.signal;
+
+            const startTime = Date.now();
+            const settingsPayload = getSettings();
 
             try {
                 // Send request relative to host, fallback to localhost if running as a local file
                 const apiHost = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
                 const response = await fetch(`${apiHost}/api/run-agents`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ prompt: prompt, session_id: currentSessionId })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: prompt, 
+                        session_id: currentSessionId,
+                        settings: settingsPayload
+                    }),
+                    signal: signal
                 });
 
                 if (!response.ok) {
                     throw new Error(`HTTP Error Status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
+                activeAbortController = null;
+                clearLoadingSimulation();
                 
+                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                const statsStr = `⚡ Generated in ${duration}s | ${data.artifact.length} chars | model: ${settingsPayload.model}`;
+
                 // Remove loading indicator
                 const loading = document.getElementById('loadingIndicator');
                 if (loading) loading.remove();
-                
+
                 // Save AI answer to current active chat immediately so it isn't lost if interrupted
-                activeChat.messages.push({ sender: 'agent', text: data.artifact });
-                
+                activeChat.messages.push({ 
+                    sender: 'agent', 
+                    text: data.artifact, 
+                    route: data.route,
+                    stats: statsStr
+                });
+
                 const updatedChats = getChats();
                 const uIndex = updatedChats.findIndex(c => c.sessionId === currentSessionId);
                 if (uIndex !== -1) {
@@ -630,39 +1145,76 @@
                 }
                 saveChats(updatedChats);
                 renderSidebar();
-                
+
                 // Create temporary response container on screen
                 const canvas = document.getElementById('artifactCanvas');
                 const responseBubbleId = `agent-response-${Date.now()}`;
-                
+
                 canvas.innerHTML += `
                     <div class="flex justify-start w-full chat-transition">
-                        <div class="bg-blue-950/20 border border-blue-500/10 px-6 py-5 rounded-2xl w-full shadow-lg mr-12">
-                            <div class="flex items-center space-x-2 mb-3.5 text-blue-400">
-                                <i data-lucide="bot" class="w-4 h-4 animate-pulse"></i>
-                                <span class="text-[10px] font-bold uppercase tracking-wider">Agent Response</span>
+                        <div class="bg-blue-950/20 border border-blue-500/10 px-6 py-5 rounded-2xl w-full shadow-lg mr-12 break-words overflow-hidden">
+                            <div class="flex items-center justify-between mb-3.5 border-b border-blue-500/5 pb-2">
+                                <div class="flex items-center space-x-2 text-blue-400">
+                                    <i data-lucide="bot" class="w-4 h-4 animate-pulse"></i>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider">Agent Response</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="speakMessage(this, ${activeChat.messages.length - 1})" class="text-gray-500 hover:text-blue-400 p-1 rounded transition-colors" title="Read aloud">
+                                        <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button onclick="exportMarkdown(${activeChat.messages.length - 1})" class="text-gray-500 hover:text-blue-400 p-1 rounded transition-colors" title="Export as Markdown">
+                                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
                             </div>
+                            
+                            ${data.route ? `
+                                <div class="flex items-center space-x-2 text-[10px] font-mono mb-4 text-gray-500 bg-gray-950/40 p-2 rounded-lg border border-gray-800/40 w-fit shrink-0">
+                                    <span class="text-blue-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-blue-500 mr-1.5"></span>Router</span>
+                                    <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-gray-700"></i>
+                                    ${data.route === 'RESEARCH' ? `
+                                        <span class="text-indigo-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-indigo-500 mr-1.5"></span>Researcher</span>
+                                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-gray-700"></i>
+                                        <span class="text-purple-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-purple-500 mr-1.5"></span>Writer</span>
+                                    ` : `
+                                        <span class="text-green-400 font-semibold flex items-center"><span class="w-1 h-1 rounded-full bg-green-500 mr-1.5"></span>Chat Agent</span>
+                                    `}
+                                </div>
+                            ` : ''}
+
                             <div id="${responseBubbleId}" class="prose prose-invert prose-blue max-w-none text-sm leading-relaxed text-gray-300">
+                            </div>
+                            
+                            <div id="${responseBubbleId}-stats" class="hidden mt-4 pt-2.5 border-t border-blue-500/5 flex items-center justify-between text-[9px] font-mono text-gray-600 animate-fade-in">
                             </div>
                         </div>
                     </div>
                 `;
                 refreshIcons();
                 scrollCanvasToBottom();
-                
+
                 const responseEl = document.getElementById(responseBubbleId);
                 updateStatus('Typing...', 'blue');
-                
+
                 // Disable input and button while typing
-                const runBtn = document.getElementById('runBtn');
-                runBtn.disabled = true;
+                const currentRunBtn = document.getElementById('runBtn');
+                currentRunBtn.disabled = true;
                 input.disabled = true;
-                
+
                 typewrite(data.artifact, responseEl, () => {
                     updateLogs('System: Agents execution finished successfully.', 'success');
                     updateStatus('Ready', 'green');
+                    toggleStopButton(false);
+
+                    highlightCodeBlocks(responseEl);
                     
-                    runBtn.disabled = false;
+                    const statsEl = document.getElementById(`${responseBubbleId}-stats`);
+                    if (statsEl) {
+                        statsEl.innerText = statsStr;
+                        statsEl.classList.remove('hidden');
+                    }
+
+                    currentRunBtn.disabled = false;
                     input.disabled = false;
                     input.focus();
                 });
@@ -670,22 +1222,42 @@
             } catch (err) {
                 const loading = document.getElementById('loadingIndicator');
                 if (loading) loading.remove();
-                
-                updateLogs(`Error: execution failed. ${err.message}`, 'error');
-                updateStatus('Error', 'red');
+                activeAbortController = null;
+                toggleStopButton(false);
+                clearLoadingSimulation();
+                stopListening();
 
-                canvas.innerHTML += `
-                    <div class="flex justify-start w-full chat-transition">
-                        <div class="bg-red-950/20 border border-red-500/20 px-5 py-4 rounded-xl text-sm mr-12 flex items-center space-x-3 text-red-300">
-                            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-400 shrink-0"></i>
-                            <span>Could not connect to the agents. Ensure your backend server is running on port 8000.</span>
+                if (err.name === 'AbortError') {
+                    updateLogs('System: Agent execution aborted by user.', 'info');
+                    updateStatus('Ready', 'green');
+
+                    // Remove user query that was aborted
+                    activeChat.messages.pop();
+                    const chats = getChats();
+                    const idx = chats.findIndex(c => c.sessionId === currentSessionId);
+                    if (idx !== -1) {
+                        chats[idx] = activeChat;
+                        saveChats(chats);
+                    }
+                    renderSidebar();
+                    renderMessages();
+                } else {
+                    updateLogs(`Error: execution failed. ${err.message}`, 'error');
+                    updateStatus('Error', 'red');
+
+                    canvas.innerHTML += `
+                        <div class="flex justify-start w-full chat-transition">
+                            <div class="bg-red-950/20 border border-red-500/20 px-5 py-4 rounded-xl text-sm mr-12 flex items-center space-x-3 text-red-300">
+                                <i data-lucide="alert-triangle" class="w-5 h-5 text-red-400 shrink-0"></i>
+                                <span>Could not connect to the agents. Ensure your backend server is running on port 8000.</span>
+                            </div>
                         </div>
-                    </div>
-                `;
-                refreshIcons();
-                scrollCanvasToBottom();
-                
-                // Re-enable input on failure
+                    `;
+                    refreshIcons();
+                    scrollCanvasToBottom();
+                }
+
+                // Re-enable input on failure/abort
                 runBtn.disabled = false;
                 input.disabled = false;
                 input.focus();
@@ -706,4 +1278,5 @@
         });
     </script>
 </body>
+
 </html>
