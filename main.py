@@ -1,6 +1,8 @@
 import os
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import TypedDict, Annotated, Sequence
 import operator
@@ -8,6 +10,10 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
+
+# Reconfigure stdout to use UTF-8 on Windows to prevent emoji encoding crashes
+if sys.platform.startswith('win'):
+    sys.stdout.reconfigure(encoding='utf-8')
 
 # Add this import to fix the error!
 from dotenv import load_dotenv
@@ -69,7 +75,7 @@ def chat_agent(state: AgentWorkspaceState):
     messages = [sys_msg] + state['messages']
     
     response = llm.invoke(messages)
-    return {"final_artifact": response.content}
+    return {"final_artifact": response.content, "messages": [response]}
 
 def researcher_agent(state: AgentWorkspaceState):
     """Gathers complex data for full reports."""
@@ -83,7 +89,7 @@ def writer_agent(state: AgentWorkspaceState):
     print("✍️ Writer is drafting the formal report...")
     prompt = f"Using this research: {state['research_data']}, write a comprehensive and highly professional markdown report. Include headers and bullet points."
     response = llm.invoke(prompt)
-    return {"final_artifact": response.content}
+    return {"final_artifact": response.content, "messages": [response]}
 
 # --- Build the Graph ---
 workflow = StateGraph(AgentWorkspaceState)
@@ -115,9 +121,25 @@ agent_app = workflow.compile(checkpointer=memory)
 # ==========================================
 # 3. FASTAPI ENDPOINT
 # ==========================================
+@app.get("/")
+async def get_index():
+    return FileResponse("index.html")
+
 class UserRequest(BaseModel):
     prompt: str
     session_id: str
+
+class TitleRequest(BaseModel):
+    prompt: str
+
+@app.post("/api/generate-title")
+async def generate_title(req: TitleRequest):
+    prompt = f"Generate a short, catchy 2-to-4 word title representing this search/chat query. For simple greetings (e.g. 'hello', 'hi', 'hey'), respond with a simple title like 'Greeting' or 'Casual Chat'. Respond with ONLY the title words, no quotes, no markdown, no punctuation:\n\nQuery: {req.prompt}"
+    response = llm.invoke(prompt)
+    title = response.content.strip().replace('"', '').replace("'", "").replace(".", "").strip()
+    if len(title) > 30:
+        title = title[:30] + "..."
+    return {"title": title}
 
 @app.post("/api/run-agents")
 async def run_agents(req: UserRequest):

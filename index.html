@@ -3,138 +3,707 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Workspace</title>
-    <!-- We added ?plugins=typography here! -->
+    <title>Agent Workspace | HQ</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar configurations */
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: rgba(17, 24, 39, 0.3);
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(75, 85, 99, 0.4);
+            border-radius: 9999px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.6);
+        }
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Smooth transitions */
+        .chat-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
 </head>
-<body class="bg-gray-950 text-gray-100 h-screen flex font-sans selection:bg-blue-500/30">
-    <!-- Left Panel -->
-    <div class="w-1/3 border-r border-gray-800 bg-gray-900/50 p-8 flex flex-col shadow-xl z-10">
-        <div class="flex items-center space-x-3 mb-8">
-            <i data-lucide="cpu" class="text-blue-500 w-8 h-8"></i>
-            <h1 class="text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">AGENT HQ</h1>
+<body class="bg-gray-950 text-gray-100 h-screen flex font-sans selection:bg-blue-500/30 overflow-hidden">
+
+    <!-- Left Sidebar -->
+    <div class="w-80 border-r border-gray-800/80 bg-gray-900/40 backdrop-blur-md flex flex-col h-full shadow-2xl z-20 shrink-0">
+        <!-- Logo Area -->
+        <div class="p-6 border-b border-gray-800/60 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-500/10 p-2 rounded-lg border border-blue-500/20">
+                    <i data-lucide="cpu" class="text-blue-400 w-5 h-5"></i>
+                </div>
+                <h1 class="text-lg font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500">AGENT HQ</h1>
+            </div>
         </div>
         
-        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Research Directive</label>
-        <textarea id="promptInput" class="w-full h-40 bg-gray-950 border border-gray-800 rounded-xl p-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all resize-none shadow-inner" placeholder="E.g., Analyze the future of AI..."></textarea>
+        <!-- Action Button -->
+        <div class="p-4">
+            <button onclick="createNewChat()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-3 px-4 rounded-xl font-semibold flex justify-center items-center space-x-2 transition-all duration-300 shadow-lg hover:shadow-blue-500/20 active:scale-[0.98]">
+                <i data-lucide="plus" class="w-4.5 h-4.5"></i>
+                <span>New Chat</span>
+            </button>
+        </div>
         
-        <button onclick="runAgents()" id="runBtn" class="mt-6 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex justify-center items-center space-x-2 transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95">
-            <i data-lucide="play" class="w-4 h-4"></i>
-            <span>Deploy Agents</span>
-        </button>
+        <!-- History List (Scrollable) -->
+        <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 scrollbar-thin" id="chatHistoryList">
+            <!-- Saved sessions will render here -->
+        </div>
         
-        <div id="logs" class="mt-8 text-sm text-gray-400 font-mono space-y-2">
-            <!-- Logs will appear here -->
+        <!-- System Logs Panel -->
+        <div class="p-4 border-t border-gray-800/60 bg-gray-950/40">
+            <div class="flex items-center justify-between mb-2 px-1">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">System Monitor</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            </div>
+            <div id="logs" class="h-28 overflow-y-auto text-[11px] text-gray-400 font-mono space-y-1.5 bg-gray-950/80 border border-gray-800/80 rounded-lg p-2.5 scrollbar-thin">
+                <div class="text-blue-400">System initialization completed.</div>
+            </div>
         </div>
     </div>
 
-    <!-- Right Panel (The Canvas) -->
-    <div class="w-2/3 p-12 overflow-y-auto bg-gray-950 relative" id="artifactCanvasWrapper">
-        <!-- We removed the prose classes from the parent so our chat bubbles can span full width -->
-        <div id="artifactCanvas" class="max-w-4xl mx-auto">
-            <div class="flex flex-col items-center justify-center h-full text-gray-700 mt-32">
-                <i data-lucide="message-square" class="w-16 h-16 mb-4 opacity-50"></i>
-                <p class="italic text-lg">Awaiting directive... Chat history will appear here.</p>
+    <!-- Main Workspace (Canvas) -->
+    <div class="flex-1 flex flex-col h-full bg-gray-950 relative overflow-hidden">
+        <!-- Top Status Bar -->
+        <div class="h-16 border-b border-gray-800/60 bg-gray-900/10 backdrop-blur-sm flex items-center justify-between px-8 z-10 shrink-0">
+            <div class="flex items-center space-x-3 overflow-hidden">
+                <i data-lucide="message-square" class="text-blue-500 w-4 h-4 shrink-0"></i>
+                <h2 id="activeChatTitle" class="text-sm font-semibold text-gray-200 truncate max-w-sm">New Conversation</h2>
+            </div>
+            <div class="flex items-center space-x-4 text-xs font-mono">
+                <div class="flex items-center space-x-1.5 text-gray-500">
+                    <span>ID:</span>
+                    <span id="activeSessionId" class="text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded border border-blue-500/10">None</span>
+                </div>
+                <div id="statusBadge" class="flex items-center space-x-1.5 text-green-400 bg-green-500/5 px-2.5 py-0.5 rounded border border-green-500/10">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    <span id="statusText">Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Output Canvas -->
+        <div class="flex-1 overflow-y-auto p-6 md:p-8 scrollbar-thin" id="artifactCanvasWrapper">
+            <div id="artifactCanvas" class="max-w-3xl mx-auto space-y-6">
+                <!-- Chat messages will render here -->
+            </div>
+        </div>
+
+        <!-- Chat Input Area -->
+        <div class="p-6 bg-gradient-to-t from-gray-950 via-gray-950/95 to-transparent shrink-0">
+            <div class="max-w-3xl mx-auto relative bg-gray-900/50 border border-gray-800/80 rounded-2xl shadow-xl focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/20 transition-all duration-300">
+                <textarea id="promptInput" rows="1" class="w-full pl-5 pr-14 py-4 bg-transparent text-gray-100 text-sm focus:outline-none resize-none scrollbar-none leading-relaxed placeholder-gray-500" placeholder="Type a message or request a deep research report..." onkeydown="handleInputKeydown(event)" oninput="autoGrow(this)"></textarea>
+                <div class="absolute right-3.5 bottom-3.5">
+                    <button onclick="runAgents()" id="runBtn" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-xl transition-all duration-300 flex justify-center items-center shadow-md hover:shadow-blue-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="max-w-3xl mx-auto mt-2 text-center text-[10px] text-gray-600 font-mono">
+                Press Enter to send, Shift+Enter for newline
             </div>
         </div>
     </div>
 
     <script>
-        lucide.createIcons();
-        
-        // 1. Generate a random session ID so the backend remembers THIS specific conversation
-        const sessionId = Math.random().toString(36).substring(2, 10);
+        const STORAGE_KEY = 'agent_hq_chats';
+        const ACTIVE_SESSION_KEY = 'agent_hq_active_session';
+        let currentSessionId = '';
+        let activeChat = null;
+        let typingInterval = null;
+        let renamingSessionId = null;
 
-        async function runAgents() {
-            const prompt = document.getElementById('promptInput').value;
-            if (!prompt) return;
-            
-            // Clear the input box after sending
-            document.getElementById('promptInput').value = '';
-
-            const btn = document.getElementById('runBtn');
-            const logs = document.getElementById('logs');
-            const canvas = document.getElementById('artifactCanvas');
-
-            // Remove placeholder text if it's the first message
-            if (canvas.innerHTML.includes('Awaiting directive')) {
-                canvas.innerHTML = '';
-            }
-
-            // 2. Append the USER'S message to the canvas as a chat bubble
-            canvas.innerHTML += `
-                <div class="bg-gray-900 border border-gray-800 p-5 rounded-2xl mb-6 shadow-sm ml-12">
-                    <div class="flex items-center space-x-2 mb-2 text-gray-500">
-                        <i data-lucide="user" class="w-4 h-4"></i>
-                        <span class="text-xs font-bold uppercase tracking-wider">You</span>
-                    </div>
-                    <p class="text-gray-200">${prompt}</p>
-                </div>
-                <div id="loadingIndicator" class="flex flex-col items-center justify-center my-8 space-y-4">
-                    <div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                    <p class="text-blue-400 font-mono animate-pulse text-sm">Agent is thinking...</p>
-                </div>
-            `;
-            lucide.createIcons();
-            
-            // Auto-scroll to bottom
-            document.getElementById('artifactCanvasWrapper').scrollTop = document.getElementById('artifactCanvasWrapper').scrollHeight;
-
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-            
-            logs.innerHTML = `
-                <div class="flex items-center space-x-2 text-blue-400">
-                    <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
-                    <span>System: Routing message...</span>
-                </div>
-            `;
-            lucide.createIcons();
-            
+        // Fetch smart title from API
+        async function generateSmartTitle(promptText, sessionId) {
             try {
-                // 3. Send the prompt AND the sessionId to the backend
-                const response = await fetch('http://localhost:8000/api/run-agents', {
+                const apiHost = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
+                const response = await fetch(`${apiHost}/api/generate-title`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ prompt: prompt, session_id: sessionId })
+                    body: JSON.stringify({ prompt: promptText })
                 });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const smartTitle = data.title;
+                    
+                    // Update lists
+                    let chats = getChats();
+                    const chatIndex = chats.findIndex(c => c.sessionId === sessionId);
+                    if (chatIndex !== -1) {
+                        chats[chatIndex].title = smartTitle;
+                        saveChats(chats);
+                        
+                        // If it remains the current active chat, update UI
+                        if (sessionId === currentSessionId) {
+                            activeChat.title = smartTitle;
+                            updateTopBar(smartTitle, sessionId);
+                        }
+                        renderSidebar();
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to generate smart title", e);
+            }
+        }
+
+        // Typewrite simulation on frontend
+        function typewrite(text, containerEl, onComplete) {
+            if (typingInterval) {
+                clearInterval(typingInterval);
+            }
+            let index = 0;
+            const speed = 10; // Speed of interval in ms
+            containerEl.innerHTML = '';
+            
+            typingInterval = setInterval(() => {
+                if (index < text.length) {
+                    // Type 2-3 characters at a time for smooth pacing
+                    const chunkSize = Math.min(3, text.length - index);
+                    const currentText = text.substring(0, index + chunkSize);
+                    index += chunkSize;
+                    
+                    containerEl.innerHTML = marked.parse(currentText);
+                    scrollCanvasToBottom();
+                } else {
+                    clearInterval(typingInterval);
+                    typingInterval = null;
+                    if (onComplete) onComplete();
+                }
+            }, speed);
+        }
+
+        // Auto grow textarea size
+        function autoGrow(element) {
+            element.style.height = "auto";
+            element.style.height = (element.scrollHeight) + "px";
+        }
+
+        // Initialize Lucide Icons
+        function refreshIcons() {
+            lucide.createIcons();
+        }
+
+        // Get saved chat list
+        function getChats() {
+            try {
+                const chats = localStorage.getItem(STORAGE_KEY);
+                return chats ? JSON.parse(chats) : [];
+            } catch (e) {
+                updateLogs('Error: Failed to read local storage.', 'error');
+                return [];
+            }
+        }
+
+        // Save chat list
+        function saveChats(chats) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+            } catch (e) {
+                updateLogs('Error: Failed to write local storage.', 'error');
+            }
+        }
+
+        // Add a message into console monitor
+        function updateLogs(text, type = 'info') {
+            const logsContainer = document.getElementById('logs');
+            const colorClass = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-blue-400';
+            const logEntry = document.createElement('div');
+            logEntry.className = `${colorClass} font-mono`;
+            
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            logEntry.innerHTML = `<span class="text-gray-600">[${time}]</span> ${text}`;
+            logsContainer.appendChild(logEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        // Initialize application on load
+        // Initialize application on load
+        function initApp() {
+            const chats = getChats();
+            const lastActiveId = localStorage.getItem(ACTIVE_SESSION_KEY);
+            
+            if (lastActiveId && chats.some(c => c.sessionId === lastActiveId)) {
+                loadChat(lastActiveId);
+            } else if (chats.length > 0) {
+                loadChat(chats[0].sessionId);
+            } else {
+                createNewChat();
+            }
+        }
+
+        // Start a fresh session
+        function createNewChat() {
+            if (typingInterval) {
+                clearInterval(typingInterval);
+                typingInterval = null;
+            }
+            const sessionId = Math.random().toString(36).substring(2, 10);
+            currentSessionId = sessionId;
+            
+            activeChat = {
+                sessionId: sessionId,
+                title: 'New Conversation',
+                messages: [],
+                timestamp: Date.now()
+            };
+            
+            renderWelcomeScreen();
+            updateTopBar('New Conversation', sessionId);
+            updateStatus('Ready', 'green');
+            
+            // Save active new chat to lists
+            const chats = getChats();
+            chats.unshift(activeChat);
+            saveChats(chats);
+            
+            localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
+            
+            renderSidebar();
+            updateLogs('System: Initialized new session.');
+            
+            document.getElementById('promptInput').focus();
+        }
+
+        // Load an existing chat
+        function loadChat(sessionId) {
+            // If clicking the current active chat, do not interrupt typing or reload
+            if (sessionId === currentSessionId && activeChat && activeChat.messages.length > 0) {
+                return;
+            }
+            if (typingInterval) {
+                clearInterval(typingInterval);
+                typingInterval = null;
+            }
+            const chats = getChats();
+            const foundChat = chats.find(c => c.sessionId === sessionId);
+            if (!foundChat) return;
+
+            activeChat = foundChat;
+            currentSessionId = sessionId;
+            
+            localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
+            
+            updateTopBar(activeChat.title, sessionId);
+            updateStatus('Ready', 'green');
+            renderMessages();
+            renderSidebar();
+            updateLogs(`System: Switched to session ${sessionId}.`);
+        }
+
+        // Delete a chat session
+        function deleteChat(event, sessionId) {
+            event.stopPropagation(); // Avoid triggering loading selection
+            
+            let chats = getChats();
+            chats = chats.filter(c => c.sessionId !== sessionId);
+            saveChats(chats);
+            
+            updateLogs(`System: Deleted session ${sessionId}.`);
+            
+            if (currentSessionId === sessionId) {
+                if (chats.length > 0) {
+                    loadChat(chats[0].sessionId);
+                } else {
+                    createNewChat();
+                }
+            } else {
+                renderSidebar();
+            }
+        }
+
+        // Renaming action handlers
+        function startRename(event, sessionId) {
+            event.stopPropagation();
+            renamingSessionId = sessionId;
+            renderSidebar();
+        }
+
+        function cancelRename(event) {
+            if (event) event.stopPropagation();
+            renamingSessionId = null;
+            renderSidebar();
+        }
+
+        function saveRename(event, sessionId) {
+            if (event) event.stopPropagation();
+            const inputEl = document.getElementById(`renameInput-${sessionId}`);
+            if (!inputEl) return;
+            
+            const newTitle = inputEl.value.trim();
+            if (newTitle) {
+                let chats = getChats();
+                const chatIndex = chats.findIndex(c => c.sessionId === sessionId);
+                if (chatIndex !== -1) {
+                    chats[chatIndex].title = newTitle;
+                    saveChats(chats);
+                    
+                    if (sessionId === currentSessionId) {
+                        activeChat.title = newTitle;
+                        updateTopBar(newTitle, sessionId);
+                    }
+                }
+            }
+            renamingSessionId = null;
+            renderSidebar();
+        }
+
+        function handleRenameKeydown(event, sessionId) {
+            if (event.key === 'Enter') {
+                saveRename(null, sessionId);
+            } else if (event.key === 'Escape') {
+                cancelRename(null);
+            }
+        }
+
+        // Trigger prompt submission on suggestions
+        function useSuggestion(promptText) {
+            document.getElementById('promptInput').value = promptText;
+            const textarea = document.getElementById('promptInput');
+            autoGrow(textarea);
+            runAgents();
+        }
+
+        // Welcome screen if chat is empty
+        function renderWelcomeScreen() {
+            const canvas = document.getElementById('artifactCanvas');
+            canvas.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 text-center space-y-6">
+                    <div class="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 p-5 rounded-3xl border border-blue-500/15 shadow-inner">
+                        <i data-lucide="bot" class="w-12 h-12 text-blue-400"></i>
+                    </div>
+                    <div class="space-y-2">
+                        <h3 class="text-xl font-bold tracking-tight text-gray-200">Deploy Router & Agents</h3>
+                        <p class="text-sm text-gray-500 max-w-sm leading-relaxed">Submit a message to prompt the Agent Router to classify your intent and generate either conversational chat or formal research.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 max-w-lg w-full pt-4">
+                        <button onclick="useSuggestion('Analyze the future of quantum computing and summarize key breakthroughs.')" class="p-4 bg-gray-900/40 border border-gray-800 hover:border-gray-700/60 rounded-2xl text-left hover:bg-gray-900/70 transition-all group flex flex-col justify-between">
+                            <span class="text-xs font-semibold text-blue-400 tracking-wider uppercase mb-1">Deep Research</span>
+                            <span class="text-xs text-gray-400 leading-normal group-hover:text-gray-300">"Analyze the future of quantum computing..."</span>
+                        </button>
+                        <button onclick="useSuggestion('Write a quick, professional python snippet to crawl headlines.')" class="p-4 bg-gray-900/40 border border-gray-800 hover:border-gray-700/60 rounded-2xl text-left hover:bg-gray-900/70 transition-all group flex flex-col justify-between">
+                            <span class="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-1">General Tasks</span>
+                            <span class="text-xs text-gray-400 leading-normal group-hover:text-gray-300">"Write a quick, professional python snippet..."</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            refreshIcons();
+        }
+
+        // Render Sidebar List
+        function renderSidebar() {
+            const listContainer = document.getElementById('chatHistoryList');
+            const chats = getChats();
+            listContainer.innerHTML = '';
+            
+            chats.forEach(chat => {
+                const isActive = chat.sessionId === currentSessionId;
+                const isRenaming = chat.sessionId === renamingSessionId;
+                
+                const activeClasses = isActive 
+                    ? 'bg-blue-600/10 border-blue-500/30 text-blue-400' 
+                    : 'border-transparent text-gray-400 hover:bg-gray-800/30 hover:text-gray-200';
+                
+                const chatItem = document.createElement('div');
+                chatItem.className = `flex items-center justify-between p-3.5 rounded-xl border text-sm font-medium cursor-pointer transition-all duration-200 group ${activeClasses}`;
+                
+                if (isRenaming) {
+                    chatItem.onclick = null; // Disable standard navigation click
+                    chatItem.innerHTML = `
+                        <div class="flex items-center space-x-2 w-full pr-2">
+                            <i data-lucide="message-square" class="w-4 h-4 shrink-0 opacity-70"></i>
+                            <input type="text" id="renameInput-${chat.sessionId}" class="bg-gray-950 border border-gray-800 rounded px-1.5 py-0.5 text-xs text-gray-100 focus:outline-none focus:border-blue-500 w-full" value="${chat.title}" onkeydown="handleRenameKeydown(event, '${chat.sessionId}')">
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button onclick="saveRename(event, '${chat.sessionId}')" class="text-green-400 hover:text-green-300 p-0.5 rounded" title="Save">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="cancelRename(event)" class="text-gray-500 hover:text-gray-400 p-0.5 rounded" title="Cancel">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Autofocus input
+                    setTimeout(() => {
+                        const inputEl = document.getElementById(`renameInput-${chat.sessionId}`);
+                        if (inputEl) {
+                            inputEl.focus();
+                            inputEl.select();
+                        }
+                    }, 0);
+                } else {
+                    chatItem.onclick = () => loadChat(chat.sessionId);
+                    chatItem.innerHTML = `
+                        <div class="flex items-center space-x-3 overflow-hidden w-full">
+                            <i data-lucide="message-square" class="w-4 h-4 shrink-0 opacity-70"></i>
+                            <span class="truncate block pr-2">${chat.title}</span>
+                        </div>
+                        <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                            <button onclick="startRename(event, '${chat.sessionId}')" class="text-gray-500 hover:text-blue-400 p-1 rounded" title="Rename chat">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="deleteChat(event, '${chat.sessionId}')" class="text-gray-500 hover:text-red-400 p-1 rounded" title="Delete conversation">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                listContainer.appendChild(chatItem);
+            });
+            
+            refreshIcons();
+        }
+
+        // Render Canvas Messages
+        function renderMessages() {
+            const canvas = document.getElementById('artifactCanvas');
+            canvas.innerHTML = '';
+            
+            if (activeChat.messages.length === 0) {
+                renderWelcomeScreen();
+                return;
+            }
+
+            activeChat.messages.forEach(msg => {
+                if (msg.sender === 'user') {
+                    canvas.innerHTML += `
+                        <div class="flex justify-end w-full chat-transition">
+                            <div class="bg-gray-900 border border-gray-800 px-5 py-3.5 rounded-2xl max-w-xl shadow-md ml-12">
+                                <div class="flex items-center space-x-2 mb-1.5 text-gray-500">
+                                    <i data-lucide="user" class="w-3.5 h-3.5"></i>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider">You</span>
+                                </div>
+                                <p class="text-gray-200 text-sm whitespace-pre-line leading-relaxed">${msg.text}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    canvas.innerHTML += `
+                        <div class="flex justify-start w-full chat-transition">
+                            <div class="bg-blue-950/20 border border-blue-500/10 px-6 py-5 rounded-2xl w-full shadow-lg mr-12">
+                                <div class="flex items-center space-x-2 mb-3.5 text-blue-400">
+                                    <i data-lucide="bot" class="w-4 h-4 animate-pulse"></i>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider">Agent Response</span>
+                                </div>
+                                <div class="prose prose-invert prose-blue max-w-none text-sm leading-relaxed text-gray-300">
+                                    ${marked.parse(msg.text)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            refreshIcons();
+            scrollCanvasToBottom();
+        }
+
+        // Auto scrolls active message field
+        function scrollCanvasToBottom() {
+            const wrapper = document.getElementById('artifactCanvasWrapper');
+            wrapper.scrollTop = wrapper.scrollHeight;
+        }
+
+        // Top Status Bar Updates
+        function updateTopBar(title, sessionId) {
+            document.getElementById('activeChatTitle').innerText = title;
+            document.getElementById('activeSessionId').innerText = sessionId;
+        }
+
+        // Update status badge UI
+        function updateStatus(text, color = 'green') {
+            const textEl = document.getElementById('statusText');
+            const badge = document.getElementById('statusBadge');
+            const dot = badge.querySelector('span');
+            
+            textEl.innerText = text;
+            
+            // Remove previous classes
+            badge.className = 'flex items-center space-x-1.5 px-2.5 py-0.5 rounded border ';
+            dot.className = 'w-1.5 h-1.5 rounded-full ';
+            
+            if (color === 'green') {
+                badge.classList.add('text-green-400', 'bg-green-500/5', 'border-green-500/10');
+                dot.classList.add('bg-green-500');
+            } else if (color === 'blue') {
+                badge.classList.add('text-blue-400', 'bg-blue-500/5', 'border-blue-500/10');
+                dot.classList.add('bg-blue-500', 'shadow-[0_0_8px_rgba(59,130,246,0.5)]');
+            } else {
+                badge.classList.add('text-red-400', 'bg-red-500/5', 'border-red-500/10');
+                dot.classList.add('bg-red-500');
+            }
+        }
+
+        // Submit message action
+        async function runAgents() {
+            const input = document.getElementById('promptInput');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+            
+            // Save state & title updating
+            const isFirstMsg = activeChat.messages.length === 0;
+            if (isFirstMsg) {
+                activeChat.title = prompt.length > 25 ? prompt.substring(0, 25) + '...' : prompt;
+                updateTopBar(activeChat.title, currentSessionId);
+                // Call API asynchronously to generate a smart catching title
+                generateSmartTitle(prompt, currentSessionId);
+            }
+            
+            activeChat.messages.push({ sender: 'user', text: prompt });
+            activeChat.timestamp = Date.now();
+            
+            // Update active list inside localStorage
+            const chats = getChats();
+            const index = chats.findIndex(c => c.sessionId === currentSessionId);
+            if (index !== -1) {
+                chats[index] = activeChat;
+                // Move updated chat to the top
+                chats.splice(index, 1);
+                chats.unshift(activeChat);
+            }
+            saveChats(chats);
+            
+            // Render user message and loading element
+            renderMessages();
+            renderSidebar();
+            
+            input.value = '';
+            input.style.height = "auto"; // Reset size
+
+            const canvas = document.getElementById('artifactCanvas');
+            canvas.innerHTML += `
+                <div id="loadingIndicator" class="flex flex-col items-center justify-center py-6 space-y-3 chat-transition">
+                    <div class="w-6 h-6 border-2 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
+                    <p class="text-blue-400/80 font-mono text-[10px] tracking-wide animate-pulse">Running agents...</p>
+                </div>
+            `;
+            scrollCanvasToBottom();
+
+            // Disable buttons during execution
+            const runBtn = document.getElementById('runBtn');
+            runBtn.disabled = true;
+            input.disabled = true;
+            
+            updateLogs('System: Routing user input to agent flow...', 'info');
+            updateStatus('Thinking...', 'blue');
+
+            try {
+                // Send request relative to host, fallback to localhost if running as a local file
+                const apiHost = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
+                const response = await fetch(`${apiHost}/api/run-agents`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prompt: prompt, session_id: currentSessionId })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error Status: ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
                 // Remove loading indicator
-                document.getElementById('loadingIndicator').remove();
+                const loading = document.getElementById('loadingIndicator');
+                if (loading) loading.remove();
                 
-                // 4. Append the AGENT'S response as a chat bubble
+                // Save AI answer to current active chat immediately so it isn't lost if interrupted
+                activeChat.messages.push({ sender: 'agent', text: data.artifact });
+                
+                const updatedChats = getChats();
+                const uIndex = updatedChats.findIndex(c => c.sessionId === currentSessionId);
+                if (uIndex !== -1) {
+                    updatedChats[uIndex] = activeChat;
+                }
+                saveChats(updatedChats);
+                renderSidebar();
+                
+                // Create temporary response container on screen
+                const canvas = document.getElementById('artifactCanvas');
+                const responseBubbleId = `agent-response-${Date.now()}`;
+                
                 canvas.innerHTML += `
-                    <div class="bg-blue-900/20 border border-blue-500/30 p-6 rounded-2xl mb-6 shadow-lg mr-12">
-                        <div class="flex items-center space-x-2 mb-4 text-blue-400">
-                            <i data-lucide="bot" class="w-4 h-4"></i>
-                            <span class="text-xs font-bold uppercase tracking-wider">Agent Response</span>
-                        </div>
-                        <div class="prose prose-invert prose-blue max-w-none">
-                            ${marked.parse(data.artifact)}
+                    <div class="flex justify-start w-full chat-transition">
+                        <div class="bg-blue-950/20 border border-blue-500/10 px-6 py-5 rounded-2xl w-full shadow-lg mr-12">
+                            <div class="flex items-center space-x-2 mb-3.5 text-blue-400">
+                                <i data-lucide="bot" class="w-4 h-4 animate-pulse"></i>
+                                <span class="text-[10px] font-bold uppercase tracking-wider">Agent Response</span>
+                            </div>
+                            <div id="${responseBubbleId}" class="prose prose-invert prose-blue max-w-none text-sm leading-relaxed text-gray-300">
+                            </div>
                         </div>
                     </div>
                 `;
+                refreshIcons();
+                scrollCanvasToBottom();
                 
-                logs.innerHTML = `
-                    <div class="flex items-center space-x-2 text-green-400">
-                        <i data-lucide="check-circle" class="w-4 h-4"></i>
-                        <span>System: Awaiting input.</span>
+                const responseEl = document.getElementById(responseBubbleId);
+                updateStatus('Typing...', 'blue');
+                
+                // Disable input and button while typing
+                const runBtn = document.getElementById('runBtn');
+                runBtn.disabled = true;
+                input.disabled = true;
+                
+                typewrite(data.artifact, responseEl, () => {
+                    updateLogs('System: Agents execution finished successfully.', 'success');
+                    updateStatus('Ready', 'green');
+                    
+                    runBtn.disabled = false;
+                    input.disabled = false;
+                    input.focus();
+                });
+
+            } catch (err) {
+                const loading = document.getElementById('loadingIndicator');
+                if (loading) loading.remove();
+                
+                updateLogs(`Error: execution failed. ${err.message}`, 'error');
+                updateStatus('Error', 'red');
+
+                canvas.innerHTML += `
+                    <div class="flex justify-start w-full chat-transition">
+                        <div class="bg-red-950/20 border border-red-500/20 px-5 py-4 rounded-xl text-sm mr-12 flex items-center space-x-3 text-red-300">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-400 shrink-0"></i>
+                            <span>Could not connect to the agents. Ensure your backend server is running on port 8000.</span>
+                        </div>
                     </div>
                 `;
-            } catch (err) {
-                document.getElementById('loadingIndicator').remove();
-                logs.innerHTML = `<span class="text-red-500">Error: Could not connect.</span>`;
-            } finally {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                lucide.createIcons();
-                // Auto-scroll to bottom again
-                document.getElementById('artifactCanvasWrapper').scrollTop = document.getElementById('artifactCanvasWrapper').scrollHeight;
+                refreshIcons();
+                scrollCanvasToBottom();
+                
+                // Re-enable input on failure
+                runBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
             }
         }
+
+        // Handle enter key to send
+        function handleInputKeydown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                runAgents();
+            }
+        }
+
+        // Initialize app on loading
+        window.addEventListener('DOMContentLoaded', () => {
+            initApp();
+        });
     </script>
 </body>
 </html>
