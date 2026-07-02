@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Workspace</title>
+    <!-- We added ?plugins=typography here! -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 h-screen flex font-sans selection:bg-blue-500/30">
+    <!-- Left Panel -->
+    <div class="w-1/3 border-r border-gray-800 bg-gray-900/50 p-8 flex flex-col shadow-xl z-10">
+        <div class="flex items-center space-x-3 mb-8">
+            <i data-lucide="cpu" class="text-blue-500 w-8 h-8"></i>
+            <h1 class="text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">AGENT HQ</h1>
+        </div>
+        
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Research Directive</label>
+        <textarea id="promptInput" class="w-full h-40 bg-gray-950 border border-gray-800 rounded-xl p-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all resize-none shadow-inner" placeholder="E.g., Analyze the future of AI..."></textarea>
+        
+        <button onclick="runAgents()" id="runBtn" class="mt-6 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex justify-center items-center space-x-2 transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95">
+            <i data-lucide="play" class="w-4 h-4"></i>
+            <span>Deploy Agents</span>
+        </button>
+        
+        <div id="logs" class="mt-8 text-sm text-gray-400 font-mono space-y-2">
+            <!-- Logs will appear here -->
+        </div>
+    </div>
+
+    <!-- Right Panel (The Canvas) -->
+    <div class="w-2/3 p-12 overflow-y-auto bg-gray-950 relative" id="artifactCanvasWrapper">
+        <!-- We removed the prose classes from the parent so our chat bubbles can span full width -->
+        <div id="artifactCanvas" class="max-w-4xl mx-auto">
+            <div class="flex flex-col items-center justify-center h-full text-gray-700 mt-32">
+                <i data-lucide="message-square" class="w-16 h-16 mb-4 opacity-50"></i>
+                <p class="italic text-lg">Awaiting directive... Chat history will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        
+        // 1. Generate a random session ID so the backend remembers THIS specific conversation
+        const sessionId = Math.random().toString(36).substring(2, 10);
+
+        async function runAgents() {
+            const prompt = document.getElementById('promptInput').value;
+            if (!prompt) return;
+            
+            // Clear the input box after sending
+            document.getElementById('promptInput').value = '';
+
+            const btn = document.getElementById('runBtn');
+            const logs = document.getElementById('logs');
+            const canvas = document.getElementById('artifactCanvas');
+
+            // Remove placeholder text if it's the first message
+            if (canvas.innerHTML.includes('Awaiting directive')) {
+                canvas.innerHTML = '';
+            }
+
+            // 2. Append the USER'S message to the canvas as a chat bubble
+            canvas.innerHTML += `
+                <div class="bg-gray-900 border border-gray-800 p-5 rounded-2xl mb-6 shadow-sm ml-12">
+                    <div class="flex items-center space-x-2 mb-2 text-gray-500">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                        <span class="text-xs font-bold uppercase tracking-wider">You</span>
+                    </div>
+                    <p class="text-gray-200">${prompt}</p>
+                </div>
+                <div id="loadingIndicator" class="flex flex-col items-center justify-center my-8 space-y-4">
+                    <div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                    <p class="text-blue-400 font-mono animate-pulse text-sm">Agent is thinking...</p>
+                </div>
+            `;
+            lucide.createIcons();
+            
+            // Auto-scroll to bottom
+            document.getElementById('artifactCanvasWrapper').scrollTop = document.getElementById('artifactCanvasWrapper').scrollHeight;
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            logs.innerHTML = `
+                <div class="flex items-center space-x-2 text-blue-400">
+                    <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                    <span>System: Routing message...</span>
+                </div>
+            `;
+            lucide.createIcons();
+            
+            try {
+                // 3. Send the prompt AND the sessionId to the backend
+                const response = await fetch('http://localhost:8000/api/run-agents', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prompt: prompt, session_id: sessionId })
+                });
+                const data = await response.json();
+                
+                // Remove loading indicator
+                document.getElementById('loadingIndicator').remove();
+                
+                // 4. Append the AGENT'S response as a chat bubble
+                canvas.innerHTML += `
+                    <div class="bg-blue-900/20 border border-blue-500/30 p-6 rounded-2xl mb-6 shadow-lg mr-12">
+                        <div class="flex items-center space-x-2 mb-4 text-blue-400">
+                            <i data-lucide="bot" class="w-4 h-4"></i>
+                            <span class="text-xs font-bold uppercase tracking-wider">Agent Response</span>
+                        </div>
+                        <div class="prose prose-invert prose-blue max-w-none">
+                            ${marked.parse(data.artifact)}
+                        </div>
+                    </div>
+                `;
+                
+                logs.innerHTML = `
+                    <div class="flex items-center space-x-2 text-green-400">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span>System: Awaiting input.</span>
+                    </div>
+                `;
+            } catch (err) {
+                document.getElementById('loadingIndicator').remove();
+                logs.innerHTML = `<span class="text-red-500">Error: Could not connect.</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                lucide.createIcons();
+                // Auto-scroll to bottom again
+                document.getElementById('artifactCanvasWrapper').scrollTop = document.getElementById('artifactCanvasWrapper').scrollHeight;
+            }
+        }
+    </script>
+</body>
+</html>
